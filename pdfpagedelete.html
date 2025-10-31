@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delete Pages from PDF</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+    }
+    h2 { color: #333; }
+    input, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h2>🗑️ Delete Specific Pages from PDF</h2>
+
+  <input type="file" id="pdfFile" accept="application/pdf" />
+  <br />
+  <input type="text" id="pagesToDelete" placeholder="Pages to delete (e.g. 1,3,5)" />
+  <br />
+  <button id="deleteBtn">Delete Pages & Download</button>
+
+  <div id="status"></div>
+
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script>
+    const fileInput = document.getElementById("pdfFile");
+    const deleteBtn = document.getElementById("deleteBtn");
+    const pagesInput = document.getElementById("pagesToDelete");
+    const status = document.getElementById("status");
+
+    deleteBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please upload a PDF first!");
+        return;
+      }
+
+      const deletePages = pagesInput.value
+        .split(",")
+        .map(n => parseInt(n.trim(), 10) - 1)
+        .filter(n => !isNaN(n) && n >= 0);
+
+      if (deletePages.length === 0) {
+        alert("Please enter valid page numbers to delete!");
+        return;
+      }
+
+      status.textContent = "Processing... please wait";
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+      const totalPages = pdfDoc.getPageCount();
+
+      const newPdf = await PDFLib.PDFDocument.create();
+
+      for (let i = 0; i < totalPages; i++) {
+        if (!deletePages.includes(i)) {
+          const [copiedPage] = await newPdf.copyPages(pdfDoc, [i]);
+          newPdf.addPage(copiedPage);
+        }
+      }
+
+      const pdfBytes = await newPdf.save();
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "edited.pdf";
+      a.click();
+
+      status.textContent = "✅ PDF created successfully (deleted selected pages)";
+    });
+  </script>
+</body>
+</html>
